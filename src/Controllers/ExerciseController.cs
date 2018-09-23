@@ -11,69 +11,44 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Workforce.Models;
 
-
 namespace Workforce.Controllers {
-    public class ExerciseController : Controller {
-        private readonly IConfiguration _config;
+    public class ExerciseController : GenericController {
 
-        public ExerciseController (IConfiguration config) {
-            _config = config;
-        }
+        private string _simpleSelectColumns = "SELECT Id, Name, Language FROM Exercise";
+        public ExerciseController (IConfiguration config) : base (config) { }
 
-        public IDbConnection Connection {
-            get {
-                return new SqliteConnection (_config.GetConnectionString ("DefaultConnection"));
-            }
-        }
+        [HttpGet]
+        public async Task<IActionResult> Index () => await base.Index<Exercise> (_simpleSelectColumns);
 
-        public async Task<IActionResult> Index () {
-            using (IDbConnection conn = Connection) {
-                IEnumerable<Exercise> exercises = await conn.QueryAsync<Exercise> (
-                    "select id, name, language from exercise;"
-                );
-                return View (exercises);
-            }
-        }
+        [HttpGet]
+        public async Task<IActionResult> Edit (int? id) => await base.Edit<Exercise> (id, $"{_simpleSelectColumns} WHERE Id = {id}");
 
-        public async Task<IActionResult> Edit (int? id) {
-            if (id == null) {
-                return NotFound ();
-            }
-
-            string sql = $"SELECT Id, Name, Language FROM Exercise WHERE Id = {id}";
-
-            using (IDbConnection conn = Connection) {
-                Exercise exercise = (await conn.QueryAsync<Exercise> (sql)).Single ();
-                return View (exercise);
-            }
-        }
+        [HttpGet]
+        public async Task<IActionResult> DeleteConfirm (int? id) => await base.DeleteConfirm<Exercise>(id, _simpleSelectColumns);
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit ([FromRoute] int id, [Bind ("Id,Name,Language")] Exercise exercise) {
-            if (id != exercise.Id) {
-                return NotFound ();
-            }
+            if (id != exercise.Id) return NotFound ();
 
             if (ModelState.IsValid) {
                 string sql = $@"
                     UPDATE Exercise
-                    SET Name = '{exercise.Name}',
+                    SET Name     = '{exercise.Name}',
                         Language = '{exercise.Language}'
                     WHERE Id = {id}";
 
-                using (IDbConnection conn = Connection) {
-                    int rowsAffected = await conn.ExecuteAsync (sql);
-                    if (rowsAffected > 0) {
-                        return RedirectToAction (nameof (Index));
-                    }
-                    throw new Exception ("No rows affected");
-                }
-
+                return await base.Edit(sql);
             } else {
-                return new StatusCodeResult(StatusCodes.Status406NotAcceptable);
+                return new StatusCodeResult (StatusCodes.Status406NotAcceptable);
             }
-
         }
+
+        [HttpPost, ActionName ("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed (int id) {
+            return await base.DeleteConfirmed(id, $"DELETE FROM Student WHERE Id = {id}");
+        }
+
     }
 }
