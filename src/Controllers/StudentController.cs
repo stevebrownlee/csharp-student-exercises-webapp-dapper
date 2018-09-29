@@ -232,18 +232,40 @@ namespace Workforce.Controllers {
             }
         }
 
+
+
+        public IActionResult CannotDelete()
+        {
+            ViewData["Resource"] = "Student";
+            return View();
+        }
+
+
+
+
         [HttpPost, ActionName ("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed (int id) {
 
             string sql = $@"DELETE FROM Student WHERE Id = {id}";
 
-            using (IDbConnection conn = Connection) {
-                int rowsAffected = await conn.ExecuteAsync (sql);
-                if (rowsAffected > 0) {
-                    return RedirectToAction (nameof (Index));
+            try
+            {
+                using (IDbConnection conn = Connection) {
+                    int rowsAffected = await conn.ExecuteAsync (sql);
+                    if (rowsAffected > 0) {
+                        return RedirectToAction (nameof (Index));
+                    }
+                    throw new Exception ("No rows affected");
                 }
-                throw new Exception ("No rows affected");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException exception)
+            {
+                if (exception.Message.Contains("FOREIGN KEY constraint failed"))
+                {
+                    return RedirectToAction (nameof (CannotDelete));
+                }
+                throw;
             }
         }
 
